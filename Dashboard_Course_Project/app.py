@@ -138,6 +138,15 @@ learn_card = dbc.Card(
 # ======= Graph tab components
 
 graph_text = dbc.Card(words.asset_allocation_text, className='card-title')
+graph_tab_content = html.Div([
+    graph_text,
+    dbc.Row([
+        dbc.Col(dcc.Graph(id='social_chart', className='mb-2'), width=6),
+        dbc.Col(dcc.Graph(id='productive_chart', className='pb-4'), width=6),
+    ]),
+    html.Hr(),
+    html.H6(words.datasource_text, className='my-2')
+])
 
 # =====  Productivity Detector components
 
@@ -227,19 +236,21 @@ media_platforms = dbc.InputGroup(
                      {'label': 'YouTube', 'value': 'Youtube'}
                      ],
             # clearable=False,
+            value=[],
             style={'width': '100%'}
         ),
     ],
     className="mb-3",
 )
-distraction_level = dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='distraction-slider'),
+distraction_level = dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='distraction-slider')
 concentration_level = dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='concentration-slider')
 
 input_groups = html.Div(
     [Age, Gender, Relationship_status, Occupation_status, time_spent, media_platforms, distraction_level,
      concentration_level],
-    id='productivity-output',
     className='mt-4')
+
+productivity_feedback = html.Div(id='productivity-output', className='mt-3')
 
 # ========= Dataset Tab components
 
@@ -253,12 +264,12 @@ dataset_card = dbc.Card([
 
 tabs = dbc.Tabs([
     dbc.Tab(learn_card, tab_id='tab1', label='Learn'),
-    dbc.Tab([words.asset_allocation_text, ],
+    dbc.Tab(graph_tab_content,
             tab_id='tab2',
             label='Graphic',
             className='pb-4',
             ),
-    dbc.Tab([words.play_text, input_groups], tab_id='tab3', label='🧠 Productivity Detector')
+    dbc.Tab([words.play_text, input_groups, productivity_feedback], tab_id='tab3', label='🧠 Productivity Detector')
 ],
     id='tabs',
     # active_tab='tab2',
@@ -294,12 +305,9 @@ app.layout = dbc.Container([
 
     dbc.Row([
         dbc.Col(tabs, width=12, className='mt-4 border'),
-        dbc.Col([dcc.Graph(id='social_chart', className='mb-2'), dcc.Graph(id='productive_chart', className='pb-4'),
-                 html.Hr(), html.H6(words.datasource_text, className='my-2')],
-                width=12, className='pt-4'),
     ], className='ms-1'),
     dbc.Row(
-        dbc.Col(words.footer)
+        dbc.Col(html.H6(words.footer))
     )
 
 ], fluid=True)
@@ -312,10 +320,10 @@ Callbacks
 
 @app.callback(
     Output('productivity-output', 'children'),
-    Input('time-spent-slider', 'value'),
+    Input('time_spent', 'value'),
     Input('distraction-slider', 'value'),
     Input('concentration-slider', 'value'),
-    Input('platforms-checklist', 'value')
+    Input('media_platforms', 'value')
 )
 def detect_productivity(time, distraction, concentration, platforms):
     # Convert strings to numbers if needed
@@ -332,7 +340,8 @@ def detect_productivity(time, distraction, concentration, platforms):
         "concentration": 4
     }
 
-    if time > warning_thresholds["time"] and distraction > warning_thresholds["distraction"] and concentration < warning_thresholds["concentration"]:
+    if time > warning_thresholds["time"] and distraction > warning_thresholds["distraction"] and concentration < \
+            warning_thresholds["concentration"]:
         return html.Div([
             html.H3("⚠️ Productivity Alert!", style={"color": "red"}),
             html.P("Your current patterns suggest high distraction and low focus. Try reducing screen time or taking "
@@ -350,7 +359,6 @@ def detect_productivity(time, distraction, concentration, platforms):
                    "on:"),
             html.Ul([html.Li(platform) for platform in platforms or []])
         ])
-
 
 
 if __name__ == "__main__":
