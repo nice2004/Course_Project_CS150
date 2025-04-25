@@ -47,7 +47,7 @@ learn_text = dcc.Markdown(
 footer = html.Div(
     dcc.Markdown(
         """
-        Social Media impact on our Productivity Study    
+        © 2025 Nice Teta Hirwa - CS150 - Professor Mike Ryu | Data collected from survey responses   
         """
     ),
     className="p-2 mt-5 bg-primary text-white small",

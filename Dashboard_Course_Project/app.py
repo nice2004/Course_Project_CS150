@@ -51,7 +51,7 @@ dataset_table = dash_table.DataTable(
         {"id": "Twitter", "name": "Twitter", "type": "numeric"},
         {"id": "Youtube", "name": "Youtube", "type": "numeric"},
     ],
-    # data=[],  # Replace with df.to_dict('records') when ready
+    data=df.to_dict('records'),
     page_size=10,
     style_table={"overflowX": "auto"},
     style_cell={"textAlign": "left", "padding": "6px"},
@@ -152,9 +152,9 @@ graph_tab_content = html.Div([
 
 detector_text = dbc.Card(words.play_text, className='card-title')
 
-Age = dbc.InputGroup(
+Age = html.Div(
     [
-        dbc.InputGroupText("Select your age"),
+        html.Label("Select your age", className='form-label'),
         dcc.Dropdown(
             id="age",
             options=[{'label': str(i), 'value': i} for i in df['Age'].unique()],
@@ -165,8 +165,8 @@ Age = dbc.InputGroup(
     className="mb-3",
 )
 
-Gender = dbc.InputGroup([
-    dbc.InputGroupText('Select your Gender'),
+Gender = html.Div([
+    html.Label('Select your Gender', className='form-label'),
     dcc.RadioItems(
         id='gender',
         options=[{'label': 'Female', 'value': 'Female'},
@@ -179,8 +179,8 @@ Gender = dbc.InputGroup([
     className="mb-3"
 )
 
-Relationship_status = dbc.InputGroup([
-    dbc.InputGroupText('Select your status'),
+Relationship_status = html.Div([
+    html.Label('Select your status', className='form-label'),
     dcc.Dropdown(
         id='relationship-status',
         options=[{'label': 'Single', 'value': 'Single'},
@@ -193,8 +193,8 @@ Relationship_status = dbc.InputGroup([
     className="mb-3"
 )
 
-Occupation_status = dbc.InputGroup([
-    dbc.InputGroupText('Select your status'),
+Occupation_status = html.Div([
+    html.Label('Select your status', className='form-label'),
     dcc.RadioItems(
         id='occupation-status',
         options=[{'label': 'University Student', 'value': 'university_student'},
@@ -207,9 +207,9 @@ Occupation_status = dbc.InputGroup([
     className="mb-3"
 )
 
-time_spent = dbc.InputGroup(
+time_spent = html.Div(
     [
-        dbc.InputGroupText("Select time spent"),
+        html.Label("Select time spent", className='form-label'),
         dcc.Dropdown(
             id="time_spent",
             options=[{'label': str(i), 'value': i} for i in df['Time Spent'].unique()],
@@ -220,9 +220,9 @@ time_spent = dbc.InputGroup(
     className="mb-3",
 )
 
-media_platforms = dbc.InputGroup(
+media_platforms = html.Div(
     [
-        dbc.InputGroupText("Select Platforms you use"),
+        html.Label("Select Platforms you use", className='form-label'),
         dcc.Checklist(
             id="media_platforms",
             options=[{'label': 'Discord', 'value': 'Discord'},
@@ -235,30 +235,96 @@ media_platforms = dbc.InputGroup(
                      {'label': 'Twitter', 'value': 'Twitter'},
                      {'label': 'YouTube', 'value': 'Youtube'}
                      ],
-            # clearable=False,
             value=[],
             style={'width': '100%'}
         ),
     ],
     className="mb-3",
 )
-distraction_level = dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='distraction-slider')
-concentration_level = dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='concentration-slider')
 
-input_groups = html.Div(
-    [Age, Gender, Relationship_status, Occupation_status, time_spent, media_platforms, distraction_level,
-     concentration_level],
-    className='mt-4')
+distraction_level = html.Div([
+    html.Label('Select your distraction level', className='form-label'),
+    dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='distraction-slider')
+],
+    className="mb-4"
+)
+
+concentration_level = html.Div([
+    html.Label('Select your concentration level', className='form-label'),
+    dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='concentration-slider')
+],
+    className="mb-4"
+)
+
+
+button = dbc.Button(
+    'Analyze your productivity',
+    id='button',
+    color='primary',
+    className='mt-3'
+)
+
+# input_groups = html.Div(
+#     [Age, Gender, Relationship_status, Occupation_status, time_spent, media_platforms, distraction_level,
+#      concentration_level],
+#     className='mt-4')
 
 productivity_feedback = html.Div(id='productivity-output', className='mt-3')
 
+detector_tab = html.Div([
+    words.play_text,
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Your Information"),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([Age, Gender], width=12, md=6),
+                        dbc.Col([Relationship_status, Occupation_status], width=12, md=6),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([time_spent], width=12),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([media_platforms], width=12),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([distraction_level], width=12, md=6),
+                    ]),
+                    dbc.Row([
+                        dbc.Col([concentration_level], width=12, md=6),
+                    ]),
+                    dbc.Button("Analyze Your Productivity", id="button", color="primary", className="mt-3"),
+                ]),
+            ]),
+        ], width=12, lg=8),
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Results"),
+                dbc.CardBody([
+                    productivity_feedback
+                ]),
+            ], className="h-100"),
+        ], width=12, lg=4),
+    ])
+])
+
 # ========= Dataset Tab components
 
-dataset_card = dbc.Card([
-    dbc.CardHeader('Social Media and Productivity Analysis Dataset'),
-    html.Div(dataset_table),
-],
-    className='mt-4')
+dataset_tab = html.Div([
+    dbc.Card([
+        dbc.CardHeader(html.H5("Social Media and Productivity Dataset")),
+        dbc.CardBody([
+            html.Div([
+                html.H6("Search and Filter:"),
+                dbc.Row([
+                    dbc.Col(dbc.Input(id="search-input", placeholder="Type to search...", type="text"), width=12, md=6),
+                ], className="mb-3"),
+                dataset_table,
+            ]),
+        ]),
+    ]),
+])
 
 # ======== Build Tabs Components
 
@@ -269,8 +335,12 @@ tabs = dbc.Tabs([
             label='Graphic',
             className='pb-4',
             ),
-    dbc.Tab([words.play_text, input_groups, productivity_feedback], tab_id='tab3', label='🧠 Productivity Detector')
+
+    dbc.Tab(detector_tab, tab_id='tab3',
+            label='🧠 Productivity Detector'),
+    dbc.Tab(dataset_tab, tab_id='tab4', label='Dataset', className='pb-4')
 ],
+
     id='tabs',
     # active_tab='tab2',
     className='mt-2')
