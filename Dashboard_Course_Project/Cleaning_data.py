@@ -78,3 +78,10 @@ social_media_dummies = df['Social Media Platforms'].explode().str.strip().str.lo
 social_media_dummies = pd.get_dummies(social_media_dummies)
 df = df.drop(columns=['Social Media Platforms']).join(social_media_dummies.groupby(level=0).sum())
 print(df.columns)
+
+file_path1 = '../Datasets/mediarates.xlsx'
+df1 = pd.read_excel(file_path1)
+# print(len(df1))
+df1 = df1.dropna()
+print(len(df1))
+print(df1.columns)
