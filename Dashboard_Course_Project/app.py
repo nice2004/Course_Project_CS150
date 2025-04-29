@@ -3,7 +3,7 @@ from assets import words
 import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.graph_objects as go
-from dash import Dash, dcc, html, dash_table, Input, Output, State, callback_context
+from dash import Dash, dcc, html, dash_table, Input, Output
 from Cleaning_data import df, df1
 import plotly.express as px
 
@@ -154,7 +154,7 @@ Make Tabs
 # =======Learn tab components
 learn_card = dbc.Card(
     [
-        dbc.CardHeader("An Introduction to Asset Allocation"),
+        dbc.CardHeader("An Introduction to SAP Dashboard"),
         dbc.CardBody(words.learn_text),
     ],
     className="mt-4",
@@ -192,6 +192,11 @@ graph_tab_content = html.Div([
     dbc.Row([
         dbc.Col(dcc.Graph(id='social_chart', className='mb-2'), width=6),
         dbc.Col(dcc.Graph(id='productivity-chart', className='pb-4'), width=6),
+    ]),
+
+    # New row for platform usage by time chart
+    dbc.Row([
+        dbc.Col(dcc.Graph(id='platform-usage-chart', className='mb-4'), width=12),
     ]),
 
     html.Hr(),
@@ -379,16 +384,16 @@ dataset_tab = html.Div([
 # ======== Build Tabs Components
 
 tabs = dbc.Tabs([
-    dbc.Tab(learn_card, tab_id='tab1', label='Learn'),
+    dbc.Tab(learn_card, tab_id='tab1', label='✍️ Learn'),
     dbc.Tab(graph_tab_content,
             tab_id='tab2',
-            label='Graphic',
+            label='📈 Graphic',
             className='pb-4',
             ),
 
     dbc.Tab(detector_tab, tab_id='tab3',
             label='🧠 Productivity Detector'),
-    dbc.Tab(dataset_tab, tab_id='tab4', label='Dataset', className='pb-4')
+    dbc.Tab(dataset_tab, tab_id='tab4', label=' 📊 Dataset', className='pb-4')
 ],
 
     id='tabs',
@@ -399,6 +404,55 @@ tabs = dbc.Tabs([
 ==========================================================================
 Helper functions
 """
+
+
+def create_top_platforms_chart(data):
+    platforms_columns = ['Discord', 'Facebook', 'Instagram', 'Pinterest', 'Reddit', 'Snapchat', 'Tiktok', 'Twitter',
+                         'Youtube']
+    time_categories = ["Less than an Hour",
+                       "Between 1 and 2 hours",
+                       "Between 2 and 3 hours",
+                       "Between 3 and 4 hours",
+                       "Between 4 and 5 hours",
+                       "More than 5 hours"]
+    results = []
+    for time in time_categories:
+        time_data = data[data['Time Spent'] == time]
+        if len(time_data) > 0:
+            platform_counts = {platform: time_data[platform].sum() for platform in platforms_columns}
+            top_platforms = sorted(platform_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+            for platform, count in top_platforms:
+                results.append({'Time Spent': time, 'Platform': platform, 'User Count': count})
+
+    df_top = pd.DataFrame(results)
+    df_top['Time Spent'] = pd.Categorical(df_top['Time Spent'], categories=time_categories, ordered=True)
+    color_map = {'Youtube': 'red', 'Facebook': 'blue', 'Instagram': 'orange', 'Discord':'purple'}
+    other_colors = px.colors.qualitative.Bold
+    available_colors = [color for color in other_colors if color not in color_map.values()]
+    for platform, color in zip(
+            [p for p in platforms_columns if p != 'Youtube' and p != 'Facebook' and p != 'Instagram'],
+            available_colors):
+        color_map[platform] = color
+
+    fig = px.bar(
+        df_top,
+        x='Time Spent',
+        y='User Count',
+        color='Platform',
+        title='Top 3 Platforms by Time Spent',
+        barmode='group',
+        color_discrete_map=color_map
+    )
+
+    fig.update_layout(
+        height=400,
+        template='plotly_white',
+        xaxis_title='Daily Time Spent on Social Media',
+        yaxis_title='Number of Users',
+        legend_title='Platform',
+        margin=dict(l=40, r=20, t=60, b=40)
+    )
+    return fig
 
 
 def create_productivity_chart(data, occupation=None, platform=None):
@@ -463,12 +517,12 @@ def create_productivity_chart(data, occupation=None, platform=None):
     df_prod.sort_values('Time Spent', inplace=True)
 
     # Create the plot
-    fig = px.line(
+    fig = px.bar(
         df_prod,
         x='Time Spent',
         y=['Concentration Score', 'Distraction Score'],
-        markers=True,
-        line_shape='spline',
+       # markers=True,
+       # line_shape='spline',
         color_discrete_sequence=['#2C6E49', '#D62828'],
     )
 
@@ -491,6 +545,7 @@ def create_productivity_chart(data, occupation=None, platform=None):
     )
 
     return fig
+
 
 """
 ===========================================================================
@@ -528,6 +583,15 @@ app.layout = dbc.Container([
 ==========================================================================
 Callbacks
 """
+
+
+@app.callback(Output('platform-usage-chart', 'figure'),
+              Input('occupation-dropdown', 'value'))
+def update_platform_usage_chart(occupation):
+    filtered_df = df.copy()
+    if occupation and occupation != 'all':
+        filtered_df = filtered_df[filtered_df['Occupation Status'] == occupation]
+    return create_top_platforms_chart(filtered_df)
 
 
 @app.callback(Output('post-type-engagement-graph', 'figure'),
