@@ -39,6 +39,9 @@ df = dataset_1.rename(columns=rename_column_names)
 print((df == 'N/A').sum())
 df = df.drop(columns=['Timestamp'])
 # print(df.columns)
+# Filter out users who answered 'No' to using social media
+df = df[df['use_social_media'] != 'No']
+
 
 # Remove salaried worker (approved), and retired (approved) (Included)
 # change school student variable to University student
@@ -55,6 +58,7 @@ print(df['Gender'].unique)
 column = df['Students']
 print(column.unique())
 print(column.value_counts())
+print(df.columns)
 # df = df[~df['Students'].isin(['University, N/A', 'School, N/A'])]
 # print(df.shape)
 
@@ -84,4 +88,36 @@ df1 = pd.read_excel(file_path1)
 # print(len(df1))
 df1 = df1.dropna()
 print(len(df1))
-print(df1.columns)
+
+platform_cols = ['Discord', 'Facebook', 'Instagram', 'Pinterest',
+                 'Reddit', 'Snapchat', 'Tiktok', 'Twitter', 'Youtube']
+# Check for rows where all platform columns are 0
+# Filter users who don't use any social media
+no_social_users = df[df['use_social_media'] == 'No']
+print(df['Use Social Media without Purpose'].dtype)
+
+# Display the count
+print(f"Number of users who don't use any social media: {len(no_social_users)}")
+#
+# dataset2_table = dash_table.DataTable(
+#     id="dataset2-table",
+#     columns=[
+#         {"id": "user_id", "name": "user_id", "type": "numeric"},
+#         {"id": "post_type", "name": "post_type", "type": "text"},
+#         {"id": "post_length", "name": "post_length", "type": "numeric"},
+#         {"id": "likes", "name": "likes", "type": "numeric"},
+#         {"id": "comments", "name": "comments", "type": "numeric"},
+#         {"id": "shares", "name": "shares", "type": "numeric"},
+#         {"id": "engagement_rate", "name": "engagement_rate", "type": "numeric"},
+#         {"id": "user_followers", "name": "user_followers", "type": "numeric"},
+#         {"id": "post_category", "name": "post_category", "type": "text"},
+#         {"id": "post_hour", "name": "post_hour", "type": "numeric"},
+#         {"id": "is_weekend", "name": "is_weekend", "type": "numeric"},
+#         {"id": "user_verified", "name": "user_verified", "type": "numeric"},
+#         {"id": "spam_flag", "name": "spam_flag", "type": "numeric"},
+#     ],
+#     data=df1.to_dict('records'),
+#     page_size=10,
+#     style_table={"overflowX": "auto"},
+#     style_cell={"textAlign": "left", "padding": "6px"},
+# )

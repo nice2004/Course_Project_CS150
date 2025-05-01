@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, dash_table, Input, Output
 from Cleaning_data import df, df1
 import plotly.express as px
+from callback1 import register_productivity_callbacks
 
 app = Dash(
     __name__,
@@ -53,29 +54,6 @@ dataset_table = dash_table.DataTable(
         {"id": "Youtube", "name": "Youtube", "type": "numeric"},
     ],
     data=df.to_dict('records'),
-    page_size=10,
-    style_table={"overflowX": "auto"},
-    style_cell={"textAlign": "left", "padding": "6px"},
-)
-
-dataset2_table = dash_table.DataTable(
-    id="dataset2-table",
-    columns=[
-        {"id": "user_id", "name": "user_id", "type": "numeric"},
-        {"id": "post_type", "name": "post_type", "type": "text"},
-        {"id": "post_length", "name": "post_length", "type": "numeric"},
-        {"id": "likes", "name": "likes", "type": "numeric"},
-        {"id": "comments", "name": "comments", "type": "numeric"},
-        {"id": "shares", "name": "shares", "type": "numeric"},
-        {"id": "engagement_rate", "name": "engagement_rate", "type": "numeric"},
-        {"id": "user_followers", "name": "user_followers", "type": "numeric"},
-        {"id": "post_category", "name": "post_category", "type": "text"},
-        {"id": "post_hour", "name": "post_hour", "type": "numeric"},
-        {"id": "is_weekend", "name": "is_weekend", "type": "numeric"},
-        {"id": "user_verified", "name": "user_verified", "type": "numeric"},
-        {"id": "spam_flag", "name": "spam_flag", "type": "numeric"},
-    ],
-    data=df1.to_dict('records'),
     page_size=10,
     style_table={"overflowX": "auto"},
     style_cell={"textAlign": "left", "padding": "6px"},
@@ -167,19 +145,6 @@ graph_tab_content = html.Div([
     graph_text,
     dbc.Row([
         dbc.Col([
-            html.Label('Select Post Category', className='form-label'),
-            dcc.Dropdown(
-                id='post-category-dropdown',
-                options=[{'label': category, 'value': category} for category in df1['post_category'].unique()],
-                value=df1['post_category'].unique()[0],
-                clearable=False,
-                style={'width': '100%'}
-            ),
-            dcc.Graph(id='post-type-engagement-graph', className='mt-3')
-        ], width=12),
-    ]),
-    dbc.Row([
-        dbc.Col([
             html.H6("Filter by Occupation:"),
             Occupation_dropdown,
         ], width=6),
@@ -190,8 +155,8 @@ graph_tab_content = html.Div([
     ], className="mb-4"),
 
     dbc.Row([
-        dbc.Col(dcc.Graph(id='social_chart', className='mb-2'), width=6),
-        dbc.Col(dcc.Graph(id='productivity-chart', className='pb-4'), width=6),
+        dbc.Col(dcc.Graph(id='concentration-chart', className='mb-2'), width=6),
+        dbc.Col(dcc.Graph(id='distraction-chart', className='pb-4'), width=6),
     ]),
 
     # New row for platform usage by time chart
@@ -318,6 +283,19 @@ button = dbc.Button(
     className='mt-3'
 )
 
+purpose_level = html.Div([
+    html.Label('Do you use social media without a purpose?', className='form-label'),
+    dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='purpose_level')
+],
+    className="mb-4"
+)
+sleep_level = html.Div([
+    html.Label('Select your sleep issues level', className='form-label'),
+    dcc.Slider(0, 5, 1, value=3, marks={i: str(i) for i in range(0, 6)}, id='sleep_level')
+],
+    className="mb-4"
+)
+
 # input_groups = html.Div(
 #     [Age, Gender, Relationship_status, Occupation_status, time_spent, media_platforms, distraction_level,
 #      concentration_level],
@@ -344,9 +322,11 @@ detector_tab = html.Div([
                     ]),
                     dbc.Row([
                         dbc.Col([distraction_level], width=12, md=6),
+                        dbc.Col([concentration_level], width=12, md=6),
                     ]),
                     dbc.Row([
-                        dbc.Col([concentration_level], width=12, md=6),
+                        dbc.Col([sleep_level], width=12, md=6),
+                        dbc.Col([purpose_level], width=12, md=6),
                     ]),
                     dbc.Button("Analyze Your Productivity", id="button", color="primary", className="mt-3"),
                 ]),
@@ -375,7 +355,6 @@ dataset_tab = html.Div([
                     dbc.Col(dbc.Input(id="search-input", placeholder="Type to search...", type="text"), width=12, md=6),
                 ], className="mb-3"),
                 dataset_table,
-                dataset2_table
             ]),
         ]),
     ]),
@@ -426,7 +405,7 @@ def create_top_platforms_chart(data):
 
     df_top = pd.DataFrame(results)
     df_top['Time Spent'] = pd.Categorical(df_top['Time Spent'], categories=time_categories, ordered=True)
-    color_map = {'Youtube': 'red', 'Facebook': 'blue', 'Instagram': 'orange', 'Discord':'purple'}
+    color_map = {'Youtube': 'red', 'Facebook': 'blue', 'Instagram': 'orange', 'Discord': 'purple'}
     other_colors = px.colors.qualitative.Bold
     available_colors = [color for color in other_colors if color not in color_map.values()]
     for platform, color in zip(
@@ -455,7 +434,7 @@ def create_top_platforms_chart(data):
     return fig
 
 
-def create_productivity_chart(data, occupation=None, platform=None):
+def create_concentration_chart(data, occupation=None, platform=None):
     filtered_df = data.copy()
 
     # Filter by occupation if provided and not 'all'
@@ -464,33 +443,99 @@ def create_productivity_chart(data, occupation=None, platform=None):
 
     # Filter by platform if provided and not 'all'
     if platform and platform != 'all':
-        # Print to debug what data is available for this platform
-        print(f"Filtering for {platform} users")
-        print(f"Count of {platform} users: {filtered_df[platform].sum()}")
-
         # Make sure we're using the correct column name
         if platform in filtered_df.columns:
             filtered_df = filtered_df[filtered_df[platform] == 1]
-            print(f"After filtering: {len(filtered_df)} rows")
-            print(f"Time ranges available: {filtered_df['Time Spent'].unique()}")
         else:
             print(f"Warning: Platform column '{platform}' not found in dataframe")
 
     # Check if we have data after filtering
     if len(filtered_df) == 0:
-        print("No data available after filtering")
         return empty_line_chart()
 
     # Group by time spent
     time_groups = filtered_df.groupby('Time Spent')
-    productivity_data = {'Time Spent': [], 'Concentration Score': [], 'Distraction Score': []}
-
-    # Print how many groups we have
-    print(f"Number of time groups: {len(time_groups)}")
+    productivity_data = {'Time Spent': [], 'Concentration Score': []}
 
     for time, group in time_groups:
         productivity_data['Time Spent'].append(time)
         productivity_data['Concentration Score'].append(5 - group['Concentration level'].mean())
+
+    # Convert to DataFrame for plotting
+    df_prod = pd.DataFrame(productivity_data)
+
+    # Define the correct order of time ranges
+    time_order = ["Less than an Hour",
+                  "Between 1 and 2 hours",
+                  "Between 2 and 3 hours",
+                  "Between 3 and 4 hours",
+                  "Between 4 and 5 hours",
+                  "More than 5 hours"]
+
+    # Make sure all time ranges are represented
+    for time in time_order:
+        if time not in df_prod['Time Spent'].values:
+            # Add row with NaN values for metrics
+            new_row = pd.DataFrame({'Time Spent': [time], 'Concentration Score': [None]})
+            df_prod = pd.concat([df_prod, new_row], ignore_index=True)
+
+    # Order by the defined sequence
+    df_prod['Time Spent'] = pd.Categorical(df_prod['Time Spent'], categories=time_order, ordered=True)
+    df_prod.sort_values('Time Spent', inplace=True)
+
+    # Create the plot
+    fig = px.bar(
+        df_prod,
+        x='Time Spent',
+        y='Concentration Score',
+        color_discrete_sequence=['#2C6E49'],
+    )
+
+    # Set plot title
+    title = 'Concentration Score by Social Media Usage'
+    if occupation and occupation != 'all':
+        title += f' - {occupation}'
+    if platform and platform != 'all':
+        title += f' - {platform} Users'
+
+    fig.update_layout(
+        title=title,
+        height=400,
+        template='plotly_white',
+        xaxis_title='Daily Time Spent on Social Media',
+        yaxis_title='Average Score (0-5)',
+        yaxis=dict(range=[0, 5]),
+        margin=dict(l=40, r=20, t=60, b=40),
+    )
+
+    return fig
+
+
+def create_distraction_chart(data, occupation=None, platform=None):
+    filtered_df = data.copy()
+
+    # Filter by occupation if provided and not 'all'
+    if occupation and occupation != 'all':
+        filtered_df = filtered_df[filtered_df['Occupation Status'] == occupation]
+
+    # Filter by platform if provided and not 'all'
+    if platform and platform != 'all':
+        # Make sure we're using the correct column name
+        if platform in filtered_df.columns:
+            filtered_df = filtered_df[filtered_df[platform] == 1]
+        else:
+            print(f"Warning: Platform column '{platform}' not found in dataframe")
+
+    # Check if we have data after filtering
+    if len(filtered_df) == 0:
+        return empty_line_chart()
+
+    # Group by time spent
+    time_groups = filtered_df.groupby('Time Spent')
+    productivity_data = {'Time Spent': [], 'Distraction Score': []}
+
+    for time, group in time_groups:
+        productivity_data['Time Spent'].append(time)
         productivity_data['Distraction Score'].append(group['Distraction level'].mean())
 
     # Convert to DataFrame for plotting
@@ -507,9 +552,8 @@ def create_productivity_chart(data, occupation=None, platform=None):
     # Make sure all time ranges are represented
     for time in time_order:
         if time not in df_prod['Time Spent'].values:
-            print(f"Adding missing time range: {time}")
             # Add row with NaN values for metrics
-            new_row = pd.DataFrame({'Time Spent': [time], 'Concentration Score': [None], 'Distraction Score': [None]})
+            new_row = pd.DataFrame({'Time Spent': [time], 'Distraction Score': [None]})
             df_prod = pd.concat([df_prod, new_row], ignore_index=True)
 
     # Order by the defined sequence
@@ -520,14 +564,12 @@ def create_productivity_chart(data, occupation=None, platform=None):
     fig = px.bar(
         df_prod,
         x='Time Spent',
-        y=['Concentration Score', 'Distraction Score'],
-       # markers=True,
-       # line_shape='spline',
-        color_discrete_sequence=['#2C6E49', '#D62828'],
+        y='Distraction Score',
+        color_discrete_sequence=['#D62828'],
     )
 
     # Set plot title
-    title = 'Productivity Metrics by Social Media Usage'
+    title = 'Distraction Score by Social Media Usage'
     if occupation and occupation != 'all':
         title += f' - {occupation}'
     if platform and platform != 'all':
@@ -537,7 +579,6 @@ def create_productivity_chart(data, occupation=None, platform=None):
         title=title,
         height=400,
         template='plotly_white',
-        legend_title='Metrics',
         xaxis_title='Daily Time Spent on Social Media',
         yaxis_title='Average Score (0-5)',
         yaxis=dict(range=[0, 5]),
@@ -555,20 +596,42 @@ Main Layout
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col(
-            html.H4(
+            html.H3(
                 'Social Media and Productivity Analysis',
-                className='bg-primary p-2 mb-2 text-center text-white'
+                className='text-center',
+                style={
+                    'marginTop': '25px',
+                    'marginBottom': '8px',
+                    'fontFamily': 'Georgia, serif',
+                    'color': '#515151',
+                    'letterSpacing': '0.7px',
+                    'fontWeight': '500'
+                }
             )
         )
     ]),
     dbc.Row([
         dbc.Col(
-            html.H5(
-                'Nice Teta Hirwa - CS150 - Professor Mike Ryu',
-                className='bg-primary p-2 mb-2 text-center text-white'
+            html.H6(
+                'Nice Teta Hirwa · CS150 · Professor Mike Ryu',
+                className='text-center text-muted',
+                style={
+                    'marginBottom': '20px',
+                    'fontStyle': 'italic',
+                    'fontFamily': 'Georgia, serif',
+                    'letterSpacing': '0.3px',
+                    'color': '#777777'
+                }
             )
         )
-    ], style={'marginBottom': '10px'}),
+    ]),
+    html.Hr(style={
+        'width': '45%',
+        'margin': 'auto',
+        'marginBottom': '25px',
+        'borderTop': '1px solid #dddddd',
+        'opacity': '0.7'
+    }),
 
     dbc.Row([
         dbc.Col(tabs, width=12, className='mt-4 border'),
@@ -594,59 +657,35 @@ def update_platform_usage_chart(occupation):
     return create_top_platforms_chart(filtered_df)
 
 
-@app.callback(Output('post-type-engagement-graph', 'figure'),
-              Input('post-category-dropdown', 'value'))
-def update_post_graph(selected_category):
-    filtered_df = df1[df1['post_category'] == selected_category]
-
-    avg_engagement = filtered_df.groupby('post_type')['engagement_rate'].mean().reset_index()
-    fig = go.Figure(
-        data=[
-            go.Bar(
-                x=avg_engagement['post_type'],
-                y=avg_engagement['engagement_rate'],
-                marker_color='lightskyblue'
-            )
-        ]
-    )
-    # Set Y-axis range with some padding, assuming engagement_rate typically ranges between 0 and 1
-    y_min = avg_engagement['engagement_rate'].min() - 0.05  # adding a bit of padding
-    y_max = avg_engagement['engagement_rate'].max() + 0.05  # adding a bit of padding
-
-    fig.update_layout(
-        title=f"Average Engagement Rate by Post Type ({selected_category})",
-        xaxis_title="Post Type",
-        yaxis_title="Engagement Rate",
-        yaxis=dict(range=[y_min, y_max]),  # Apply Y-axis scaling here
-        template="plotly_white",
-        height=500
-    )
-
-    return fig
+register_productivity_callbacks(app, df)
 
 
-@app.callback(Output('productivity-chart', 'figure'),
-              [Input('occupation-dropdown', 'value'),
-               Input('platform-dropdown', 'value')])
+# Update the callback function to handle the separate charts
+@app.callback(
+    [Output('concentration-chart', 'figure'),
+     Output('distraction-chart', 'figure')],
+    [Input('occupation-dropdown', 'value'),
+     Input('platform-dropdown', 'value')])
 def update_charts(occupation, platform):
     filtered_df = df.copy()
 
     if occupation != 'all':
         filtered_df = filtered_df[filtered_df['Occupation Status'] == occupation]
         print(f"Filtered Data after occupation: {filtered_df.shape}")
-    productivity_fig = create_productivity_chart(
+
+    concentration_fig = create_concentration_chart(
         filtered_df,
         None if occupation == 'all' else occupation,
         None if platform == 'all' else platform
     )
 
-    # # Find most used platform
-    # platform_columns = ['Facebook', 'Instagram', 'Youtube', 'Twitter', 'Tiktok', 'Reddit', 'Pinterest', 'Snapchat',
-    #                     'Discord']
-    # platform_usage = {col: filtered_df[col].sum() for col in platform_columns}
-    # most_used = max(platform_usage.items(), key=lambda x: x[1])[0]
+    distraction_fig = create_distraction_chart(
+        filtered_df,
+        None if occupation == 'all' else occupation,
+        None if platform == 'all' else platform
+    )
 
-    return productivity_fig
+    return concentration_fig, distraction_fig
 
 
 if __name__ == "__main__":
